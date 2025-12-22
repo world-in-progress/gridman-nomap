@@ -270,8 +270,8 @@ export default function TopologyEditor(
 
         const clg = await waitForClg()
 
-        // // If the patch/schema is defined in EPSG:4326, convert bounds to EPSG:3857 (meters)
-        // // so grid construction and sizing operate in meters.
+        // If the patch/schema is defined in EPSG:4326, convert bounds to EPSG:3857 (meters)
+        // so grid construction and sizing operate in meters.
         let srcCS = `EPSG:${pageContext.current.patch?.epsg}`
         let bBoxCoords = pageContext.current.patch!.bounds as [number, number, number, number]
 
