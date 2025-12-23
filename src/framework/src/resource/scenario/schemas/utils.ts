@@ -105,11 +105,11 @@ export const validateGridLayers = (gridLayers: GridLayerInfo[]): { errors: Recor
 export const validateSchemaForm = (
     data: {
         name: string
-        epsg: number
-        lon: string
-        lat: string
+        // epsg: number
+        // lon: string
+        // lat: string
         gridLayerInfos: GridLayerInfo[]
-        convertedCoord: { x: number, y: number } | null
+        // convertedCoord: { x: number, y: number } | null
     },
 ): ValidationResult => {
     const errors = {
@@ -128,18 +128,18 @@ export const validateSchemaForm = (
     }
 
     // Validate EPSG code
-    if (!data.epsg || isNaN(Number(data.epsg))) {
-        errors.epsg = true
-        generalError = 'Please enter a valid EPSG code'
-        return { isValid: false, errors, generalError }
-    }
+    // if (!data.epsg || isNaN(Number(data.epsg))) {
+    //     errors.epsg = true
+    //     generalError = 'Please enter a valid EPSG code'
+    //     return { isValid: false, errors, generalError }
+    // }
 
     // Validate coordinates
-    if (!data.lon.trim() || !data.lat.trim() || isNaN(Number(data.lon)) || isNaN(Number(data.lat))) {
-        errors.coordinates = true
-        generalError = 'Please enter valid coordinates'
-        return { isValid: false, errors, generalError }
-    }
+    // if (!data.lon.trim() || !data.lat.trim() || isNaN(Number(data.lon)) || isNaN(Number(data.lat))) {
+    //     errors.coordinates = true
+    //     generalError = 'Please enter valid coordinates'
+    //     return { isValid: false, errors, generalError }
+    // }
 
     // Validate grid levels
     if (data.gridLayerInfos.length === 0) {
@@ -165,10 +165,10 @@ export const validateSchemaForm = (
     }
 
     // Validate converted coordinates
-    if (!data.convertedCoord) {
-        generalError = 'Unable to get converted coordinates'
-        return { isValid: false, errors, generalError }
-    }
+    // if (!data.convertedCoord) {
+    //     generalError = 'Unable to get converted coordinates'
+    //     return { isValid: false, errors, generalError }
+    // }
 
     return { isValid: true, errors, generalError }
 }

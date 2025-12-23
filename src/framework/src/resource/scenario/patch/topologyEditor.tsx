@@ -275,28 +275,35 @@ export default function TopologyEditor(
         let srcCS = `EPSG:${pageContext.current.patch?.epsg}`
         let bBoxCoords = pageContext.current.patch!.bounds as [number, number, number, number]
 
+        // 这里还是无EPSG
+        console.log('Original EPSG and bounds:', srcCS, bBoxCoords)
+
         if (pageContext.current.patch!.epsg === 4326) {
             const sw = convertSinglePointCoordinate([bBoxCoords[0], bBoxCoords[1]], '4326', '2326')
             const ne = convertSinglePointCoordinate([bBoxCoords[2], bBoxCoords[3]], '4326', '2326')
-            srcCS = 'EPSG:2326'
+            srcCS = 'EPSG:3857'
             bBoxCoords = [sw[0], sw[1], ne[0], ne[1]]
         }
 
-        console.log('srcCS', srcCS)
-        console.log('bounds', bBoxCoords)
-
         const gridContext: GridContext = {
-            // srcCS: `EPSG:${pageContext.current.patch?.epsg}`,
             srcCS: srcCS,
             targetCS: 'EPSG:4326',
-            // bBox: boundingBox2D(...pageContext.current.patch!.bounds),
             bBox: boundingBox2D(...bBoxCoords),
             rules: pageContext.current.patch!.subdivide_rules
         }
+
         const gridLayer = new TopologyLayer(map)
         clg.addLayer(gridLayer)
+
+        // 这里开始报错
         const gridCore: GridCore = new GridCore(gridContext, node.tree.isPublic)
+
+        // 下面没有执行
+        // 这里还是无EPSG
+        console.log('srcCS', srcCS, 'bounds', bBoxCoords)
+
         await gridLayer.initialize(map, map.painter.context.gl)
+
         pc.topologyLayer = gridLayer
         gridLayer.gridCore = gridCore
         pc.gridCore = gridCore
@@ -311,11 +318,20 @@ export default function TopologyEditor(
         }
 
         store.get<{ on: Function, off: Function }>('isLoading')!.off()
-        const boundsOn4326 = convertToWGS84(pageContext.current.patch!.bounds, pageContext.current.patch!.epsg.toString())
-        map.fitBounds(boundsOn4326, {
-            duration: 1000,
-            padding: { top: 50, bottom: 50, left: 100, right: 100 }
-        });
+        const boundsOn4326 = convertToWGS84(pageContext.current.patch!.bounds, '3857')
+        if (srcCS !== 'EPSG:0') {
+            map.fitBounds(boundsOn4326, {
+                duration: 1000,
+                padding: { top: 50, bottom: 50, left: 100, right: 100 }
+            });
+        } else {
+            map.flyTo({
+                center: [(boundsOn4326[0] + boundsOn4326[2]) / 2, (boundsOn4326[1] + boundsOn4326[3]) / 2],
+                zoom: 1,
+                duration: 1000,
+            });
+        }
+
     }
 
     const unloadContext = (node: SceneNode) => {

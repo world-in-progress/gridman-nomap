@@ -10,7 +10,7 @@ function enableAllExtensions(gl: WebGL2RenderingContext) {
     const extensions = gl.getSupportedExtensions()!
     extensions.forEach(ext => {
         gl.getExtension(ext)
-        console.log('Enabled extensions: ', ext)
+        // console.log('Enabled extensions: ', ext)
     })
 }
 

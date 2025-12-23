@@ -90,6 +90,7 @@ export const MapContainer = forwardRef<MapboxDraw, MapContainerProps>((props, re
                 // },
                 style: 'mapbox://styles/mapbox/streets-v12',
                 center: [initialLongitude, initialLatitude],
+                projection: 'mercator',
                 zoom: initialZoom,
                 attributionControl: false,
                 boxZoom: false,
@@ -127,8 +128,8 @@ export const MapContainer = forwardRef<MapboxDraw, MapContainerProps>((props, re
                 const layerGroup = new CustomLayerGroup()
                 layerGroup.id = 'gridman-custom-layer-group'
                 mapInstance.addLayer(layerGroup)
-                addRasterTileLayer(mapInstance, vecwUrl, 'vecw', 'vecw');
-                addRasterTileLayer(mapInstance, cvawUrl, 'cvaw', 'cvaw');
+                // addRasterTileLayer(mapInstance, vecwUrl, 'vecw', 'vecw');
+                // addRasterTileLayer(mapInstance, cvawUrl, 'cvaw', 'cvaw');
                 store.set('clg', layerGroup)
             })
             store.set('map', mapInstance)

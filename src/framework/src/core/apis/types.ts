@@ -89,10 +89,10 @@ export interface ResponseWithNum {
 
 export interface GridSchema {
     name: string
-    epsg: number
+    epsg: number | null
     starred: boolean
     description: string
-    base_point: [number, number]
+    base_point: [number, number] | null
     grid_info: [number, number][]
 }
 

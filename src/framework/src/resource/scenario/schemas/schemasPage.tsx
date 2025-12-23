@@ -1,22 +1,23 @@
+import { useEffect, useReducer, useRef, useState } from 'react'
 import store from '@/store'
 import mapboxgl from 'mapbox-gl'
 import * as apis from '@/core/apis/apis'
 import { SchemasPageProps } from './types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SchemasPageContext } from './schemas'
 import { GridSchema } from '@/core/apis/types'
+import { useTranslation } from 'react-i18next'
+import { SchemasPageContext } from './schemas'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Crosshair, MapPin, MapPinPlus, Save, X } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useEffect, useReducer, useRef, useState } from 'react'
 import MapContainer from '@/components/mapContainer/mapContainer'
-import { addMapMarker, clearMapMarkers, convertCoordinate } from '@/components/mapContainer/utils'
+import { Crosshair, MapPin, MapPinPlus, Save, X } from 'lucide-react'
 import { SceneNode, SceneTree } from '@/components/resourceScene/scene'
 import { validateGridLayers, validateSchemaForm, pickingFromMap } from './utils'
-import { useTranslation } from 'react-i18next'
+import { addMapMarker, clearMapMarkers, convertCoordinate } from '@/components/mapContainer/utils'
+import { Switch } from '@/components/ui/switch'
 
 const schemaTips = [
     { tip1: 'Fill in the name of the Schema and the EPSG code.' },
@@ -54,6 +55,7 @@ export default function SchemasPage({
     const pageContext = useRef<SchemasPageContext>(new SchemasPageContext())
     const [, triggerRepaint] = useReducer(x => x + 1, 0)
 
+    const [noEPSGSwitchOn, setNoEPSGSwitchOn] = useState(false);
     const [isSelectingPoint, setIsSelectingPoint] = useState(false)
     const [generalMessage, setGeneralMessage] = useState<string | null>(null)
     const [layerErrors, setLayerErrors] = useState<Record<number, string>>({})
@@ -288,14 +290,17 @@ export default function SchemasPage({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        let schemaData: GridSchema
         const pc = pageContext.current
+
+        // TODO: 数据验证的健壮性需要提高
         const validation = validateSchemaForm({
             name: pc.name,
-            convertedCoord,
-            epsg: pc.epsg!,
+            // convertedCoord,
+            // epsg: pc.epsg!,
             gridLayerInfos: pc.gridLayers,
-            lon: pc.basePoint[0] !== null ? pc.basePoint[0].toString() : '',
-            lat: pc.basePoint[1] !== null ? pc.basePoint[1].toString() : '',
+            // lon: pc.basePoint[0] !== null ? pc.basePoint[0].toString() : '',
+            // lat: pc.basePoint[1] !== null ? pc.basePoint[1].toString() : '',
         })
 
         if (!validation.isValid) {
@@ -304,14 +309,34 @@ export default function SchemasPage({
             return
         }
 
-        const schemaData: GridSchema = {
-            name: pc.name,
-            epsg: pc.epsg!,
-            starred: false,
-            description: pc.description,
-            base_point: [convertedCoord!.x, convertedCoord!.y],
-            grid_info: pc.gridLayers.map(layer => [parseFloat(layer.width), parseFloat(layer.height)]),
+        if (noEPSGSwitchOn) {
+            schemaData = {
+                name: pc.name,
+                epsg: 0,
+                starred: false,
+                description: pc.description,
+                base_point: [0, 0],
+                grid_info: pc.gridLayers.map(layer => [parseFloat(layer.width), parseFloat(layer.height)]),
+            }
+        } else {
+            schemaData = {
+                name: pc.name,
+                epsg: pc.epsg!,
+                starred: false,
+                description: pc.description,
+                base_point: [convertedCoord!.x, convertedCoord!.y],
+                grid_info: pc.gridLayers.map(layer => [parseFloat(layer.width), parseFloat(layer.height)]),
+            }
         }
+
+        // const schemaData: GridSchema = {
+        //     name: pc.name,
+        //     epsg: pc.epsg!,
+        //     starred: false,
+        //     description: pc.description,
+        //     base_point: [convertedCoord!.x, convertedCoord!.y],
+        //     grid_info: pc.gridLayers.map(layer => [parseFloat(layer.width), parseFloat(layer.height)]),
+        // }
 
         setGeneralMessage('Submitting data...')
 
@@ -330,6 +355,18 @@ export default function SchemasPage({
                 await resetForm()
                 tree.notifyDomUpdate()
             }, 500)
+        }
+    }
+
+    const toggleNoEPSGSwitch = () => {
+        if (noEPSGSwitchOn === pageContext.current!.noEPSG) {
+            const newNoEPSGSwitchState = !noEPSGSwitchOn
+            setNoEPSGSwitchOn(newNoEPSGSwitchState)
+            pageContext.current!.noEPSG = newNoEPSGSwitchState
+
+            // if (topologyLayer) {
+            //     topologyLayer.setCheckMode(newCheckState)
+            // }
         }
     }
 
@@ -421,15 +458,26 @@ export default function SchemasPage({
                             {/* EPSG Code */}
                             {/* --------- */}
                             <div className='bg-white rounded-lg shadow-sm p-4 border border-gray-200'>
-                                <h2 className='text-black text-lg font-semibold mb-2'>
-                                    {t('EPSG Code')}
-                                </h2>
+                                <div className='flex items-center justify-between mb-2'>
+                                    <h2 className='text-black text-lg font-semibold'>
+                                        {t('EPSG Code')}
+                                    </h2>
+                                    <div className='flex items-center'>
+                                        <span className='text-sm font-semibold mr-2'>No EPSG Provided</span>
+                                        <Switch
+                                            className='data-[state=checked]:bg-amber-300 data-[state=unchecked]:bg-gray-300 cursor-pointer'
+                                            checked={noEPSGSwitchOn}
+                                            onCheckedChange={toggleNoEPSGSwitch}
+                                        />
+                                    </div>
+                                </div>
                                 <div className='space-y-2'>
                                     <Input
                                         id='epsg'
                                         placeholder={t('Enter EPSG code (e.g. 4326)')}
                                         className={`text-black w-full border-gray-300 ${formErrors.epsg ? 'border-red-500 focus:ring-red-500' : ''}`}
                                         value={pageContext.current.epsg ? pageContext.current.epsg.toString() : ''}
+                                        disabled={noEPSGSwitchOn === true}
                                         onChange={handleSetEPSG}
                                     />
                                 </div>
@@ -452,6 +500,7 @@ export default function SchemasPage({
                                                 type='number'
                                                 step='0.000001'
                                                 value={pageContext.current.basePoint[0] || ''}
+                                                disabled={noEPSGSwitchOn === true}
                                                 onChange={handleSetBasePointLon}
                                                 placeholder={t('Enter longitude')}
                                                 className={`w-3/4 border-gray-300 ${formErrors.coordinates ? 'border-red-500 focus:ring-red-500' : ''
@@ -467,6 +516,7 @@ export default function SchemasPage({
                                                 type='number'
                                                 step='0.000001'
                                                 value={pageContext.current.basePoint[1] || ''}
+                                                disabled={noEPSGSwitchOn === true}
                                                 onChange={handleSetBasePointLat}
                                                 placeholder={t('Enter latitude')}
                                                 className={`w-3/4 border-gray-300 ${formErrors.coordinates ? 'border-red-500 focus:ring-red-500' : ''
@@ -495,6 +545,7 @@ export default function SchemasPage({
                                         <Button
                                             type='button'
                                             onClick={handleBasePointPicking}
+                                            disabled={noEPSGSwitchOn === true}
                                             className={`w-[80px] h-[84px] shadow-sm ${isSelectingPoint
                                                 ? 'bg-red-500 hover:bg-red-600'
                                                 : 'bg-blue-500 hover:bg-blue-600'

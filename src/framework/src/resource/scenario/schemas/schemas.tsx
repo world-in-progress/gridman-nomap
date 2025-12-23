@@ -14,6 +14,7 @@ export class SchemasPageContext extends DefaultPageContext {
     description: string
     gridLayers: GridLayerInfo[]
     basePoint: [number | null, number | null]
+    noEPSG: boolean
 
     constructor() {
         super()
@@ -22,6 +23,7 @@ export class SchemasPageContext extends DefaultPageContext {
         this.description = ''
         this.basePoint = [null, null]
         this.gridLayers = []
+        this.noEPSG = false
     }
 
     static async create(): Promise<SchemasPageContext> {

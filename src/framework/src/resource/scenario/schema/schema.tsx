@@ -1,5 +1,4 @@
 import { toast } from 'sonner'
-import { SchemaInfo } from './types'
 import SchemaPage from './schemaPage'
 import { ISceneNode } from '@/core/scene/iscene'
 import { Delete, FilePlus2, Info } from 'lucide-react'
@@ -8,9 +7,10 @@ import DefaultPageContext from '@/core/context/default'
 import DefaultScenarioNode from '@/core/scenario/default'
 import { SceneNode, SceneTree } from '@/components/resourceScene/scene'
 import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-menu'
+import { GridSchema } from '@/core/apis/types'
 
 export class SchemaPageContext extends DefaultPageContext {
-    schema: SchemaInfo | null
+    schema: GridSchema | null
     isEditing: boolean
 
     constructor() {

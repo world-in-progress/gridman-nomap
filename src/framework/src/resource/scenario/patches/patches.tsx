@@ -5,9 +5,9 @@ import { ContextMenuContent, ContextMenuItem } from '@/components/ui/context-men
 import DefaultPageContext from '@/core/context/default'
 import DefaultScenarioNode from '@/core/scenario/default'
 import PatchesPage from './patchesPage'
-import { SchemaInfo } from '../schema/types'
 import { getSchemaInfo } from '../schema/utils'
 import PatchesInformation from './patchInformation'
+import { GridSchema } from '@/core/apis/types'
 
 export class PatchesPageContext extends DefaultPageContext {
     name: string
@@ -15,7 +15,7 @@ export class PatchesPageContext extends DefaultPageContext {
     originBounds: [number, number, number, number] | null       // EPSG: 4326
     adjustedBounds: [number, number, number, number] | null     // EPSG: 4326
     inputBounds: [number, number, number, number] | null        // EPSG: schema
-    schema: SchemaInfo | null
+    schema: GridSchema | null
     widthCount: number
     heightCount: number
     hasBounds: boolean

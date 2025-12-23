@@ -739,7 +739,7 @@ export function calculateGridCounts(
     basePoint: [number, number],
     gridLevel: [number, number]
 ): { widthCount: number, heightCount: number } {
-    console.log('Calculating grid counts with:', southWest, basePoint, gridLevel)
+    // console.log('Calculating grid counts with:', southWest, basePoint, gridLevel)
     const gridWidth = gridLevel[0]
     const gridHeight = gridLevel[1]
     const [swX, swY] = southWest

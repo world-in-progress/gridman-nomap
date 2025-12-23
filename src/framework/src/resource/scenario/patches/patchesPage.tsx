@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import * as apis from '@/core/apis/apis'
 import { validatePatchForm } from './utils'
 import { Input } from '@/components/ui/input'
@@ -28,7 +29,7 @@ import {
     startDrawingRectangle,
     stopDrawingRectangle
 } from '@/components/mapContainer/utils'
-import { toast } from 'sonner'
+import store from '@/store'
 
 const patchTips = [
     { tip1: 'Fill in the name of the Schema and the EPSG code.' },
@@ -64,7 +65,8 @@ export default function PatchesPage({
     const schemaMarkerPoint = useRef<[number, number]>([0, 0])
     const drawCoordinates = useRef<RectangleCoordinates | null>(null)
 
-    const [isError, setIsError] = useState<boolean>(false)
+    let inputBoundsOn4326
+    let inputBoundsMoved: [number, number, number, number]
 
     ///////////////////////////////////////////////////////////////////////////////
 
@@ -95,26 +97,33 @@ export default function PatchesPage({
         pageContext.current = await node.getPageContext() as PatchesPageContext
         const pc = pageContext.current
 
-        schemaEPSG.current = pc.schema!.epsg.toString()
+        const map = store.get<mapboxgl.Map>('map')
+
+        schemaEPSG.current = pc.schema!.epsg!.toString()
         schemaGridLevel.current = pc.schema!.grid_info[0]
-        schemaBasePoint.current = pc.schema!.base_point
+        schemaBasePoint.current = pc.schema!.base_point!
 
-        schemaMarkerPoint.current = convertSinglePointCoordinate(schemaBasePoint.current, schemaEPSG.current, '4326')
-        flyToMarker(schemaMarkerPoint.current, 11)
+        if (schemaEPSG.current !== '0') {
+            schemaMarkerPoint.current = convertSinglePointCoordinate(schemaBasePoint.current, schemaEPSG.current, '4326')
+            flyToMarker(schemaMarkerPoint.current, 11)
 
-        if (pc.originBounds && pc.adjustedBounds) {
-            const { convertedBounds, alignedBounds, expandedBounds } = adjustPatchBounds(pc.originBounds, schemaGridLevel.current, '4326', schemaEPSG.current, schemaBasePoint.current)
-            const adjustedSWPoint = [pc.adjustedBounds[0], pc.adjustedBounds[1]] as [number, number]
-            setConvertCoordinate([convertedBounds!.southWest[0], convertedBounds!.southWest[1], convertedBounds!.northEast[0], convertedBounds!.northEast[1]])
-            setAdjustedCoordinate([expandedBounds!.southWest[0], expandedBounds!.southWest[1], expandedBounds!.northEast[0], expandedBounds!.northEast[1]])
-            addMapPatchBounds(pc.originBounds!)
-            addMapPatchBounds(pc.adjustedBounds!, 'adjusted-bounds')
-            addMapLineBetweenPoints(schemaMarkerPoint.current, adjustedSWPoint, pageContext.current.widthCount, pageContext.current.heightCount)
-            addMapMarker(adjustedSWPoint, { color: 'red', draggable: false })
+            if (pc.originBounds && pc.adjustedBounds) {
+                const { convertedBounds, alignedBounds, expandedBounds } = adjustPatchBounds(pc.originBounds, schemaGridLevel.current, '4326', schemaEPSG.current, schemaBasePoint.current)
+                const adjustedSWPoint = [pc.adjustedBounds[0], pc.adjustedBounds[1]] as [number, number]
+                setConvertCoordinate([convertedBounds!.southWest[0], convertedBounds!.southWest[1], convertedBounds!.northEast[0], convertedBounds!.northEast[1]])
+                setAdjustedCoordinate([expandedBounds!.southWest[0], expandedBounds!.southWest[1], expandedBounds!.northEast[0], expandedBounds!.northEast[1]])
+                addMapPatchBounds(pc.originBounds!)
+                addMapPatchBounds(pc.adjustedBounds!, 'adjusted-bounds')
+                addMapLineBetweenPoints(schemaMarkerPoint.current, adjustedSWPoint, pageContext.current.widthCount, pageContext.current.heightCount)
+                addMapMarker(adjustedSWPoint, { color: 'red', draggable: false })
+            } else {
+                setConvertCoordinate(null)
+                setAdjustedCoordinate(null)
+            }
         } else {
-            setConvertCoordinate(null)
-            setAdjustedCoordinate(null)
+            console.log('No EPSG Code Provided')
         }
+
         triggerRepaint()
     }
 
@@ -150,14 +159,14 @@ export default function PatchesPage({
             const fromEPSG = '4326'
             const toEPSG = schemaEPSG.current
 
-            console.log('to', toEPSG)
-            console.log('Schema Base Point', schemaBasePoint.current)
+            // console.log('to', toEPSG)
+            // console.log('Schema Base Point', schemaBasePoint.current)
 
             const { convertedBounds, alignedBounds, expandedBounds } = adjustPatchBounds(patchBounds!, schemaGridLevel.current, fromEPSG, toEPSG, schemaBasePoint.current)      // EPSG: Schema
 
-            console.log('convertedBounds', convertedBounds)
-            console.log('alignedBounds', alignedBounds)
-            console.log('expandedBounds', expandedBounds)
+            // console.log('convertedBounds', convertedBounds)
+            // console.log('alignedBounds', alignedBounds)
+            // console.log('expandedBounds', expandedBounds)
 
             const convertedSWOnTarget = convertedBounds!.southWest              // EPSG: Schema
             const convertedNEOnTarget = convertedBounds!.northEast              // EPSG: Schema
@@ -169,11 +178,11 @@ export default function PatchesPage({
 
             pageContext.current.inputBounds = [expandedBounds!.southWest[0], expandedBounds!.southWest[1], expandedBounds!.northEast[0], expandedBounds!.northEast[1]]  // EPSG: Schema
 
-            console.log('1')
+            // console.log('1')
             const alignedSWPoint = convertSinglePointCoordinate(expandedBounds!.southWest, toEPSG, '4326')
             const alignedNEPoint = convertSinglePointCoordinate(expandedBounds!.northEast, toEPSG, '4326')
-            console.log('2')
-            console.log('alignedSWPoint', alignedSWPoint)
+            // console.log('2')
+            // console.log('alignedSWPoint', alignedSWPoint)
             addMapMarker(alignedSWPoint, { color: 'red', draggable: false })
             pageContext.current.adjustedBounds = [alignedSWPoint[0], alignedSWPoint[1], alignedNEPoint[0], alignedNEPoint[1]]
 
@@ -181,13 +190,13 @@ export default function PatchesPage({
             addMapPatchBounds(adjustedDrawBoundsOn4326, 'adjusted-bounds')
 
             const expandedBoundsOn3857SW = convertSinglePointCoordinate(expandedBounds!.southWest, toEPSG, '3857')
-            console.log(expandedBounds!.southWest, expandedBoundsOn3857SW)
+            // console.log(expandedBounds!.southWest, expandedBoundsOn3857SW)
             const schemaBasePointOn3857 = convertSinglePointCoordinate(schemaBasePoint.current, toEPSG, '3857')
 
             // const { widthCount, heightCount } = calculateGridCounts(expandedBoundsOn3857SW, schemaBasePointOn3857, schemaGridLevel.current)
             const { widthCount, heightCount } = calculateGridCounts(expandedBounds!.southWest, schemaBasePoint.current, schemaGridLevel.current)
-            console.log(expandedBounds!.southWest, schemaBasePoint.current, schemaGridLevel.current)
-            console.log('Calculated Width/Height Count:', widthCount, heightCount)
+            // console.log(expandedBounds!.southWest, schemaBasePoint.current, schemaGridLevel.current)
+            // console.log('Calculated Width/Height Count:', widthCount, heightCount)
 
             pageContext.current.widthCount = widthCount
             pageContext.current.heightCount = heightCount
@@ -195,6 +204,26 @@ export default function PatchesPage({
             addMapLineBetweenPoints(schemaMarkerPoint.current, alignedSWPoint, widthCount, heightCount)
             pageContext.current.hasBounds = true
         }
+
+        triggerRepaint()
+    }
+
+    const adjustInputCoords = () => {
+        clearGridLines()
+        clearDrawPatchBounds()
+
+        const width = inputBoundsMoved[2] - inputBoundsMoved[0]
+        const heigh = inputBoundsMoved[3] - inputBoundsMoved[1]
+
+        const gridwidth = schemaGridLevel.current[0]
+        const gridheight = schemaGridLevel.current[1]
+
+        const widthAdjusted = Math.ceil(width / gridwidth) * gridwidth
+        const heightAdjusted = Math.ceil(heigh / gridheight) * gridheight
+
+        pageContext.current.inputBounds = [0, 0, widthAdjusted, heightAdjusted]
+
+        inputBoundsOn4326 = convertToWGS84(pageContext.current.inputBounds, '3857')
 
         triggerRepaint()
     }
@@ -253,6 +282,14 @@ export default function PatchesPage({
     }
 
     const drawBoundsByParams = () => {
+        const map = store.get<mapboxgl.Map>('map')
+        map!.flyTo({
+            center: [0, 0],
+            zoom: 14,
+            essential: true,
+            duration: 1000
+        })
+
         const inputBounds = pageContext.current.inputBounds
         if (pageContext.current.hasBounds) {
             toast.info(t('Map bounds have been adjusted'))
@@ -264,7 +301,13 @@ export default function PatchesPage({
             addMapMarker(schemaMarkerPoint.current)
             clearDrawPatchBounds()
             clearGridLines()
-            const inputBoundsOn4326 = convertToWGS84(inputBounds!, schemaEPSG.current)
+
+            if (schemaEPSG.current === '0') {
+                inputBoundsMoved = [0, 0, inputBounds[2] - inputBounds[0], inputBounds[3] - inputBounds[1]] as [number, number, number, number]
+                inputBoundsOn4326 = convertToWGS84(inputBoundsMoved, '3857')
+            } else {
+                inputBoundsOn4326 = convertToWGS84(inputBounds!, schemaEPSG.current)
+            }
 
             drawCoordinates.current = {
                 southWest: [inputBoundsOn4326[0], inputBoundsOn4326[1]],
@@ -273,8 +316,19 @@ export default function PatchesPage({
                 northWest: [inputBoundsOn4326[0], inputBoundsOn4326[3]],
                 center: [(inputBoundsOn4326[0] + inputBoundsOn4326[2]) / 2, (inputBoundsOn4326[1] + inputBoundsOn4326[3]) / 2],
             }
-            adjustCoords()
-            addMapPatchBounds(inputBoundsOn4326, '4326')
+
+            if (schemaEPSG.current === '0') {
+                adjustInputCoords()
+                // TODO: 改为WebGL绘制patch边界
+                // 这一步绘制patch矩形边界依赖了mapbox的底图
+                addMapPatchBounds(inputBoundsOn4326, '4326')
+            } else {
+                adjustCoords()
+
+                addMapPatchBounds(inputBoundsOn4326, '4326')
+            }
+
+            triggerRepaint()
         }
     }
 
@@ -319,10 +373,12 @@ export default function PatchesPage({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
+        let patchData: PatchMeta
+
         const pc = pageContext.current
         const validation = validatePatchForm({
             name: pc.name!,
-            bounds: adjustedCoordinate!
+            // bounds: adjustedCoordinate!
         })
 
         if (!validation.isValid) {
@@ -332,11 +388,20 @@ export default function PatchesPage({
         }
 
 
-        const patchData: PatchMeta = {
-            name: pc.name!,
-            starred: false,
-            description: pc.description,
-            bounds: adjustedCoordinate!
+        if (schemaEPSG.current === '0') {
+            patchData = {
+                name: pc.name!,
+                starred: false,
+                description: pc.description,
+                bounds: pageContext.current.inputBounds!  // 无EPSG参考下平移到零点的包围盒
+            }
+        } else {
+            patchData = {
+                name: pc.name!,
+                starred: false,
+                description: pc.description,
+                bounds: adjustedCoordinate!
+            }
         }
 
         setGeneralMessage(t('Submitting data...'))
@@ -487,8 +552,9 @@ export default function PatchesPage({
                                         <div className='font-bold text-md mb-2'>
                                             {t('Method One: Draw to generate')}
                                         </div>
-                                        <button
+                                        <Button
                                             type='button'
+                                            disabled={schemaEPSG.current === '0'}
                                             onClick={handleDrawBounds}
                                             className={`w-full py-2 px-4 rounded-md font-medium transition-colors cursor-pointer ${isDrawingBounds
                                                 ? 'bg-red-500 text-white hover:bg-red-600'
@@ -497,7 +563,7 @@ export default function PatchesPage({
                                             {isDrawingBounds
                                                 ? t('Click to cancel rectangle drawing')
                                                 : t('Click to draw rectangle')}
-                                        </button>
+                                        </Button>
                                         {isDrawingBounds && (
                                             <div className='mt-2 p-2 bg-yellow-50 rounded-md border border-yellow-200 text-xs text-yellow-800'>
                                                 <p>{t('Drawing method:')}</p>
@@ -563,18 +629,15 @@ export default function PatchesPage({
                                             <div className='text-center'>
                                                 <span className='font-bold text-[#FF8F2E] text-xl'>{t('Center')}</span>
                                                 <div
-                                                    className={`text-[10px] mt-1 ${isError ? 'text-red-600' : ''
-                                                        }`}
+                                                    className='text-[10px] mt-1'
                                                 >
-                                                    {isError
-                                                        ? t('Coordinate Error')
-                                                        : pageContext.current.inputBounds
-                                                            ? `${formatSingleValue(
-                                                                (pageContext.current.inputBounds[0] + pageContext.current.inputBounds[2]) / 2
-                                                            )}, ${formatSingleValue(
-                                                                (pageContext.current.inputBounds[1] + pageContext.current.inputBounds[3]) / 2
-                                                            )}`
-                                                            : t('Enter bounds')}
+                                                    {pageContext.current.inputBounds
+                                                        ? `${formatSingleValue(
+                                                            (pageContext.current.inputBounds[0] + pageContext.current.inputBounds[2]) / 2
+                                                        )}, ${formatSingleValue(
+                                                            (pageContext.current.inputBounds[1] + pageContext.current.inputBounds[3]) / 2
+                                                        )}`
+                                                        : t('Enter bounds')}
                                                 </div>
                                             </div>
                                             {/* East/Right - southEast[0] */}
@@ -616,13 +679,13 @@ export default function PatchesPage({
                                                 <div className='absolute bottom-0 right-1/4 w-3/4 h-1/2 border-b-2 border-r-2 border-gray-300 rounded-br'></div>
                                             </div>
                                         </div>
-                                        <button
+                                        <Button
                                             type='button'
                                             className='w-full py-2 px-4 rounded-md font-medium transition-colors cursor-pointer bg-blue-500 text-white hover:bg-blue-600'
                                             onClick={drawBoundsByParams}
                                         >
                                             {t('Click to adjust and draw bounds')}
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             </div>

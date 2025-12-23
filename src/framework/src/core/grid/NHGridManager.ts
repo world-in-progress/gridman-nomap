@@ -20,7 +20,7 @@ import { MercatorCoordinate } from '../math/mercatorCoordinate';
 //     '+proj=tmerc +lat_0=22.3121333333333 +lon_0=114.178555555556 +k=1 +x_0=836694.05 +y_0=819069.8 +ellps=intl +towgs84=-162.619,-276.959,-161.764,0.067753,-2.243649,-1.158827,-1.094246 +units=m +no_defs',
 // )
 
-proj4.defs('EPSG:3857','+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs')
+proj4.defs('EPSG:3857', '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs')
 
 // proj4.defs(
 //     'EPSG:4326',
@@ -592,13 +592,18 @@ export default class GridManager {
     private _center: [number, number]
     private _levelInfos: GridLevelInfo[];
     private _context: GridContext;
-    private _projConverter: Converter;
+    private _projConverter: Converter | null
 
     constructor(context: GridContext) {
-        this._projConverter = proj4(
-            context.srcCS,
-            context.targetCS
-        );
+        if (context.srcCS !== 'EPSG:0') {
+            this._projConverter = proj4(
+                context.srcCS,
+                context.targetCS
+            );
+        } else {
+            this._projConverter = null
+        }
+
         this._levelInfos = [{ width: 1, height: 1 }];
 
         this._context = context;
@@ -623,7 +628,11 @@ export default class GridManager {
 
     set context(context: GridContext) {
         // Update projection converter
-        this._projConverter = proj4(context.srcCS, context.targetCS);
+        if (context.srcCS !== 'EPSG:0') {
+            this._projConverter = proj4(context.srcCS, context.targetCS);
+        } else {
+            this._projConverter = null
+        }
 
         // Update subdivide rules first
         this._context = context;
@@ -966,69 +975,78 @@ export default class GridManager {
         }
     }
 
-    getEdgeRenderInfos(keys: string[]): Float32Array {
-        const vertexBuffer = new Float32Array(keys.length * 4);
-        keys.forEach((key, index) =>
-            this._getEdgeRenderInfo(index, key, vertexBuffer)
-        );
-        return vertexBuffer;
-    }
+    // getEdgeRenderInfos(keys: string[]): Float32Array {
+    //     const vertexBuffer = new Float32Array(keys.length * 4);
+    //     keys.forEach((key, index) =>
+    //         this._getEdgeRenderInfo(index, key, vertexBuffer)
+    //     );
+    //     return vertexBuffer;
+    // }
 
-    private _getEdgeRenderInfo(
-        index: number,
-        key: string,
-        vertexBuffer: Float32Array
-    ): void {
-        const direction = key.substring(0, 1);
-        const position = key.substring(1).split('-');
+    // private _getEdgeRenderInfo(
+    //     index: number,
+    //     key: string,
+    //     vertexBuffer: Float32Array
+    // ): void {
+    //     const direction = key.substring(0, 1);
+    //     const position = key.substring(1).split('-');
 
-        const min = +position[0] / +position[1];
-        const max = +position[2] / +position[3];
-        const shared = +position[4] / +position[5];
+    //     const min = +position[0] / +position[1];
+    //     const max = +position[2] / +position[3];
+    //     const shared = +position[4] / +position[5];
 
-        const bBox = this._context.bBox;
-        const center = this._projConverter.forward([
-            (bBox.xMin + bBox.xMax) / 2.0,
-            (bBox.yMin + bBox.yMax) / 2.0,
-        ]);
-        const mercatorCenter = MercatorCoordinate.fromLonLat(
-            center as [number, number]
-        );
+    //     const bBox = this._context.bBox;
+    //     const center = this._projConverter.forward([
+    //         (bBox.xMin + bBox.xMax) / 2.0,
+    //         (bBox.yMin + bBox.yMax) / 2.0,
+    //     ])
+    //     const mercatorCenter = MercatorCoordinate.fromLonLat(
+    //         center as [number, number]
+    //     )
 
-        if (direction === 'h') {
-            const minX = lerp(bBox.xMin, bBox.xMax, min);
-            const maxX = lerp(bBox.xMin, bBox.xMax, max);
-            const sharedY = lerp(bBox.yMin, bBox.yMax, shared);
+    //     console.log('center', center)
+    //     console.log('mercatorCenter', mercatorCenter)
 
-            const start = MercatorCoordinate.fromLonLat(
-                this._projConverter.forward([minX, sharedY])
-            );
-            const end = MercatorCoordinate.fromLonLat(
-                this._projConverter.forward([maxX, sharedY])
-            );
+    //     if (direction === 'h') {
+    //         const minX = lerp(bBox.xMin, bBox.xMax, min);
+    //         const maxX = lerp(bBox.xMin, bBox.xMax, max);
+    //         const sharedY = lerp(bBox.yMin, bBox.yMax, shared);
 
-            vertexBuffer[index * 4 + 0] = start[0] - mercatorCenter[0];
-            vertexBuffer[index * 4 + 1] = start[1] - mercatorCenter[1];
-            vertexBuffer[index * 4 + 2] = end[0] - mercatorCenter[0];
-            vertexBuffer[index * 4 + 3] = end[1] - mercatorCenter[1];
-        } else {
-            const minY = lerp(bBox.yMin, bBox.yMax, min);
-            const maxY = lerp(bBox.yMin, bBox.yMax, max);
-            const sharedX = lerp(bBox.xMin, bBox.xMax, shared);
+    //         const start = MercatorCoordinate.fromLonLat(
+    //             this._projConverter.forward([minX, sharedY])
+    //         )
+    //         const end = MercatorCoordinate.fromLonLat(
+    //             this._projConverter.forward([maxX, sharedY])
+    //         )
 
-            const start = MercatorCoordinate.fromLonLat(
-                this._projConverter.forward([sharedX, minY])
-            );
-            const end = MercatorCoordinate.fromLonLat(
-                this._projConverter.forward([sharedX, maxY])
-            );
+    //         console.log('start', start)
+    //         console.log('end', end)
 
-            vertexBuffer[index * 4 + 0] = start[0] - mercatorCenter[0];
-            vertexBuffer[index * 4 + 1] = start[1] - mercatorCenter[1];
-            vertexBuffer[index * 4 + 2] = end[0] - mercatorCenter[0];
-            vertexBuffer[index * 4 + 3] = end[1] - mercatorCenter[1];
-        }
-    }
+    //         vertexBuffer[index * 4 + 0] = start[0] - mercatorCenter[0];
+    //         vertexBuffer[index * 4 + 1] = start[1] - mercatorCenter[1];
+    //         vertexBuffer[index * 4 + 2] = end[0] - mercatorCenter[0];
+    //         vertexBuffer[index * 4 + 3] = end[1] - mercatorCenter[1];
+    //     } else {
+    //         const minY = lerp(bBox.yMin, bBox.yMax, min);
+    //         const maxY = lerp(bBox.yMin, bBox.yMax, max);
+    //         const sharedX = lerp(bBox.xMin, bBox.xMax, shared);
+
+    //         const start = MercatorCoordinate.fromLonLat(
+    //             this._projConverter.forward([sharedX, minY])
+    //         );
+    //         const end = MercatorCoordinate.fromLonLat(
+    //             this._projConverter.forward([sharedX, maxY])
+    //         )
+
+    //         console.log('start', start)
+    //         console.log('end', end)
+
+    //         vertexBuffer[index * 4 + 0] = start[0] - mercatorCenter[0];
+    //         vertexBuffer[index * 4 + 1] = start[1] - mercatorCenter[1];
+    //         vertexBuffer[index * 4 + 2] = end[0] - mercatorCenter[0];
+    //         vertexBuffer[index * 4 + 3] = end[1] - mercatorCenter[1];
+    //     }
+    // }
 
     private _getGridInfoFromUV(
         level: number,
@@ -1061,41 +1079,80 @@ export default class GridManager {
         const globalU = globalId % width;
         const globalV = Math.floor(globalId / width);
 
-        const xMin = lerp(bBox.xMin, bBox.xMax, globalU / width);
-        const yMin = lerp(bBox.yMin, bBox.yMax, globalV / height);
-        const xMax = lerp(bBox.xMin, bBox.xMax, (globalU + 1) / width);
-        const yMax = lerp(bBox.yMin, bBox.yMax, (globalV + 1) / height);
+        if (this._context.srcCS !== 'EPSG:0') {
+            const xMin = lerp(bBox.xMin, bBox.xMax, globalU / width)
+            const yMin = lerp(bBox.yMin, bBox.yMax, globalV / height)
+            const xMax = lerp(bBox.xMin, bBox.xMax, (globalU + 1) / width)
+            const yMax = lerp(bBox.yMin, bBox.yMax, (globalV + 1) / height)
 
-        const targetCoords = [
-            this._projConverter.forward([xMin, yMax]), // srcTL
-            this._projConverter.forward([xMax, yMax]), // srcTR
-            this._projConverter.forward([xMin, yMin]), // srcBL
-            this._projConverter.forward([xMax, yMin]), // srcBR
-        ];
+            const targetCoords = [
+                this._projConverter!.forward([xMin, yMax]), // srcTL
+                this._projConverter!.forward([xMax, yMax]), // srcTR
+                this._projConverter!.forward([xMin, yMin]), // srcBL
+                this._projConverter!.forward([xMax, yMin]), // srcBR
+            ]
 
-        const relativeCenter: [number, number] = this._projConverter.forward(this._center);
-        const mercatorCenter = MercatorCoordinate.fromLonLat(relativeCenter);
-        const centerX = encodeFloatToDouble(mercatorCenter[0]);
-        const centerY = encodeFloatToDouble(mercatorCenter[1]);
+            const relativeCenter: [number, number] = this._projConverter!.forward(this._center)
+            const mercatorCenter = MercatorCoordinate.fromLonLat(relativeCenter)
+            const centerX = encodeFloatToDouble(mercatorCenter[0])
+            const centerY = encodeFloatToDouble(mercatorCenter[1])
 
-        const renderCoords: number[] = []
-        const renderCoordsLow: number[] = []
-        targetCoords.forEach((coord) => {
-            const mercatorCoord = MercatorCoordinate.fromLonLat(coord as [number, number])
-            const mercatorCoordX = encodeFloatToDouble(mercatorCoord[0])
-            const mercatorCoordY = encodeFloatToDouble(mercatorCoord[1])
-            renderCoords.push(mercatorCoordX[0] - centerX[0])
-            renderCoordsLow.push(mercatorCoordX[1] - centerX[1])
-            renderCoords.push(mercatorCoordY[0] - centerY[0])
-            renderCoordsLow.push(mercatorCoordY[1] - centerY[1])
-        })
+            const renderCoords: number[] = []
+            const renderCoordsLow: number[] = []
+            targetCoords.forEach((coord) => {
+                const mercatorCoord = MercatorCoordinate.fromLonLat(coord as [number, number])
+                const mercatorCoordX = encodeFloatToDouble(mercatorCoord[0])
+                const mercatorCoordY = encodeFloatToDouble(mercatorCoord[1])
+                renderCoords.push(mercatorCoordX[0] - centerX[0])
+                renderCoordsLow.push(mercatorCoordX[1] - centerX[1])
+                renderCoords.push(mercatorCoordY[0] - centerY[0])
+                renderCoordsLow.push(mercatorCoordY[1] - centerY[1])
+            })
 
-        if (!vertices) vertices = new Float32Array(renderCoords.flat());
-        else vertices.set(renderCoords.flat(), 0);
-        if (!verticesLow) verticesLow = new Float32Array(renderCoordsLow.flat());
-        else verticesLow.set(renderCoordsLow.flat(), 0);
+            if (!vertices) vertices = new Float32Array(renderCoords.flat());
+            else vertices.set(renderCoords.flat(), 0);
+            if (!verticesLow) verticesLow = new Float32Array(renderCoordsLow.flat());
+            else verticesLow.set(renderCoordsLow.flat(), 0)
 
-        return [vertices, verticesLow];
+            return [vertices, verticesLow]
+
+        } else {
+            const centerX = encodeFloatToDouble(0.5)
+            const centerY = encodeFloatToDouble(0.5)
+
+            const renderCoords: number[] = []
+            const renderCoordsLow: number[] = []
+
+            const maxL = Math.max(width, height)
+
+            const minX = globalU / maxL
+            const minY = globalV / maxL
+            const maxX = (globalU + 1) / maxL
+            const maxY = (globalV + 1) / maxL
+
+            const targetCoords = [
+                [minX, maxY], // TL
+                [maxX, maxY], // TR
+                [minX, minY], // BL
+                [maxX, minY], // BR
+            ]
+
+            targetCoords.forEach((coord) => {
+                const mercatorCoordX = encodeFloatToDouble(coord[0])
+                const mercatorCoordY = encodeFloatToDouble(coord[1])
+                renderCoords.push(mercatorCoordX[0] - centerX[0])
+                renderCoordsLow.push(mercatorCoordX[1] - centerX[1])
+                renderCoords.push(mercatorCoordY[0] - centerY[0])
+                renderCoordsLow.push(mercatorCoordY[1] - centerY[1])
+            })
+
+            if (!vertices) vertices = new Float32Array(renderCoords.flat());
+            else vertices.set(renderCoords.flat(), 0);
+            if (!verticesLow) verticesLow = new Float32Array(renderCoordsLow.flat());
+            else verticesLow.set(renderCoordsLow.flat(), 0)
+
+            return [vertices, verticesLow]
+        }
     }
 
     createMultiGridRenderVertices(

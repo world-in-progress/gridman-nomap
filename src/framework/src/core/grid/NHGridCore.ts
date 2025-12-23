@@ -5,7 +5,7 @@ import { GridContext, GridCheckingInfo, GridSaveInfo, MultiGridBaseInfo, Structu
 
 // proj4.defs('EPSG:2326', "+proj=tmerc +lat_0=22.3121333333333 +lon_0=114.178555555556 +k=1 +x_0=836694.05 +y_0=819069.8 +ellps=intl +towgs84=-162.619,-276.959,-161.764,0.067753,-2.243649,-1.158827,-1.094246 +units=m +no_defs")
 // proj4.defs('EPSG:4326',"+proj=longlat +datum=WGS84 +no_defs")
-proj4.defs('EPSG:3857','+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs')
+proj4.defs('EPSG:3857', '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs')
 
 const DELETED_FLAG = 1
 const UNDELETED_FLAG = 0
@@ -47,7 +47,7 @@ export default class GridCore {
     // Grid metadata
     maxGridNum: number
     levelInfos: GridLevelInfo[]
-    renderRelativeCenter: Float32Array
+    renderRelativeCenter: Float32Array = null!
 
     // Worker dispatcher
     private _dispatcher: Dispatcher
@@ -76,11 +76,34 @@ export default class GridCore {
         })
 
         // Calculate bounding box center in mercator coordinates for high-precision rendering
-        const bBoxCenter: [number, number] = proj4(this.context.srcCS, this.context.targetCS, this.context.bBox.center)
-        const mercatorCenter = MercatorCoordinate.fromLonLat(bBoxCenter)
-        const centerX = encodeFloatToDouble(mercatorCenter[0])
-        const centerY = encodeFloatToDouble(mercatorCenter[1])
-        this.renderRelativeCenter = new Float32Array([...centerX, ...centerY])
+        console.log(this.context.srcCS, this.context.targetCS, this.context.bBox.center)
+        console.log(this.context.bBox)
+
+        if (this.context.srcCS === 'EPSG:0') {
+            const boundsWidth = this.context.bBox.data[2] - this.context.bBox.data[0]
+            const boundsHeight = this.context.bBox.data[3] - this.context.bBox.data[1]
+
+
+            const centerX = encodeFloatToDouble(0.5)
+            const centerY = encodeFloatToDouble(0.5)
+            this.renderRelativeCenter = new Float32Array([...centerX, ...centerY])
+
+            console.log('centerX', centerX)
+            console.log('centerY', centerY)
+        } else {
+            const bBoxCenter: [number, number] = proj4(this.context.srcCS, this.context.targetCS, this.context.bBox.center)
+            const mercatorCenter = MercatorCoordinate.fromLonLat(bBoxCenter)
+            const centerX = encodeFloatToDouble(mercatorCenter[0])
+            const centerY = encodeFloatToDouble(mercatorCenter[1])
+
+            this.renderRelativeCenter = new Float32Array([...centerX, ...centerY])
+
+            console.log('bBoxCenter', bBoxCenter)
+            console.log('mercatorCenter', mercatorCenter)
+            console.log('centerX', centerX)
+            console.log('centerY', centerY)
+        }
+
 
         // Init dispatcher
         this._dispatcher = new Dispatcher(this, options.workerCount)

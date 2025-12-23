@@ -8,7 +8,7 @@ export const formatCoordinate = (coord: [number, number] | undefined) => {
 export const validatePatchForm = (
     data: {
         name: string
-        bounds: [number, number, number, number]
+        // bounds: [number, number, number, number]
     }
 ): ValidationResult => {
     const errors = {
@@ -26,17 +26,18 @@ export const validatePatchForm = (
         return { isValid: false, errors, generalError }
     }
 
+    // TODO:完善绘制矩形检查
     // Validate bounds
-    if (!data.bounds) {
-        errors.bounds = true
-        generalError = 'Please draw patch bounds'
-        return { isValid: false, errors, generalError }
-    } else {
-        if (data.bounds[0] >= data.bounds[2] || data.bounds[1] >= data.bounds[3]) {
-            errors.bounds = true
-            generalError = 'Please draw patch bounds correctly'
-            return { isValid: false, errors, generalError }
-        }
-    }
+    // if (!data.bounds) {
+    //     errors.bounds = true
+    //     generalError = 'Please draw patch bounds'
+    //     return { isValid: false, errors, generalError }
+    // } else {
+    //     if (data.bounds[0] >= data.bounds[2] || data.bounds[1] >= data.bounds[3]) {
+    //         errors.bounds = true
+    //         generalError = 'Please draw patch bounds correctly'
+    //         return { isValid: false, errors, generalError }
+    //     }
+    // }
     return { isValid: true, errors, generalError }
 }
