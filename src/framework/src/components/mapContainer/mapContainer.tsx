@@ -83,11 +83,6 @@ export const MapContainer = forwardRef<MapboxDraw, MapContainerProps>((props, re
             // })
             mapInstance = new mapboxgl.Map({
                 container: mapWrapperRef.current,
-                // style: {
-                //     version: 8,
-                //     sources: {},
-                //     layers: []
-                // },
                 style: 'mapbox://styles/mapbox/streets-v12',
                 center: [initialLongitude, initialLatitude],
                 projection: 'mercator',
@@ -119,7 +114,7 @@ export const MapContainer = forwardRef<MapboxDraw, MapContainerProps>((props, re
                     minzoom: 0,
                     maxzoom: 18,
                     paint: {
-                        'raster-opacity': 0.9  // 设置透明度，默认为 1.0
+                        'raster-opacity': 0.5
                     }
                 });
             }
@@ -128,8 +123,8 @@ export const MapContainer = forwardRef<MapboxDraw, MapContainerProps>((props, re
                 const layerGroup = new CustomLayerGroup()
                 layerGroup.id = 'gridman-custom-layer-group'
                 mapInstance.addLayer(layerGroup)
-                // addRasterTileLayer(mapInstance, vecwUrl, 'vecw', 'vecw');
-                // addRasterTileLayer(mapInstance, cvawUrl, 'cvaw', 'cvaw');
+                addRasterTileLayer(mapInstance, vecwUrl, 'vecw', 'vecw');
+                addRasterTileLayer(mapInstance, cvawUrl, 'cvaw', 'cvaw');
                 store.set('clg', layerGroup)
             })
             store.set('map', mapInstance)

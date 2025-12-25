@@ -30,6 +30,7 @@ import {
     stopDrawingRectangle
 } from '@/components/mapContainer/utils'
 import store from '@/store'
+import PatchCustomLayer from '@/components/mapContainer/patchCustomLayer'
 
 const patchTips = [
     { tip1: 'Fill in the name of the Schema and the EPSG code.' },
@@ -65,7 +66,7 @@ export default function PatchesPage({
     const schemaMarkerPoint = useRef<[number, number]>([0, 0])
     const drawCoordinates = useRef<RectangleCoordinates | null>(null)
 
-    let inputBoundsOn4326
+    let inputBoundsOn4326: [number, number, number, number]
     let inputBoundsMoved: [number, number, number, number]
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -97,11 +98,25 @@ export default function PatchesPage({
         pageContext.current = await node.getPageContext() as PatchesPageContext
         const pc = pageContext.current
 
-        const map = store.get<mapboxgl.Map>('map')
+        const map = store.get<mapboxgl.Map>('map')!
 
         schemaEPSG.current = pc.schema!.epsg!.toString()
         schemaGridLevel.current = pc.schema!.grid_info[0]
         schemaBasePoint.current = pc.schema!.base_point!
+
+        const waitForMapLoad = () => {
+            return new Promise<void>((resolve) => {
+                if (map.loaded()) {
+                    resolve()
+                } else {
+                    map.once('load', () => {
+                        resolve()
+                    })
+                }
+            })
+        }
+
+        await waitForMapLoad()
 
         if (schemaEPSG.current !== '0') {
             schemaMarkerPoint.current = convertSinglePointCoordinate(schemaBasePoint.current, schemaEPSG.current, '4326')
@@ -121,7 +136,41 @@ export default function PatchesPage({
                 setAdjustedCoordinate(null)
             }
         } else {
-            console.log('No EPSG Code Provided')
+            try {
+                if (!map.getSource('global-mask')) {
+                    map.addSource('global-mask', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            properties: {},
+                            geometry: {
+                                type: 'Polygon',
+                                coordinates: [[
+                                    [-180, -90],
+                                    [180, -90],
+                                    [180, 90],
+                                    [-180, 90],
+                                    [-180, -90]
+                                ]]
+                            }
+                        }
+                    })
+                }
+                if (!map.getLayer('global-mask-layer')) {
+                    map.addLayer({
+                        id: 'global-mask-layer',
+                        type: 'fill',
+                        source: 'global-mask',
+                        layout: {},
+                        paint: {
+                            'fill-color': '#ffffff',
+                            'fill-opacity': 1
+                        }
+                    })
+                }
+            } catch (err) {
+                console.warn('Failed to add global mask layer', err)
+            }
         }
 
         triggerRepaint()
@@ -282,8 +331,8 @@ export default function PatchesPage({
     }
 
     const drawBoundsByParams = () => {
-        const map = store.get<mapboxgl.Map>('map')
-        map!.flyTo({
+        const map = store.get<mapboxgl.Map>('map')!
+        map.flyTo({
             center: [0, 0],
             zoom: 14,
             essential: true,
@@ -305,26 +354,26 @@ export default function PatchesPage({
             if (schemaEPSG.current === '0') {
                 inputBoundsMoved = [0, 0, inputBounds[2] - inputBounds[0], inputBounds[3] - inputBounds[1]] as [number, number, number, number]
                 inputBoundsOn4326 = convertToWGS84(inputBoundsMoved, '3857')
-            } else {
-                inputBoundsOn4326 = convertToWGS84(inputBounds!, schemaEPSG.current)
-            }
 
-            drawCoordinates.current = {
-                southWest: [inputBoundsOn4326[0], inputBoundsOn4326[1]],
-                southEast: [inputBoundsOn4326[2], inputBoundsOn4326[1]],
-                northEast: [inputBoundsOn4326[2], inputBoundsOn4326[3]],
-                northWest: [inputBoundsOn4326[0], inputBoundsOn4326[3]],
-                center: [(inputBoundsOn4326[0] + inputBoundsOn4326[2]) / 2, (inputBoundsOn4326[1] + inputBoundsOn4326[3]) / 2],
-            }
-
-            if (schemaEPSG.current === '0') {
                 adjustInputCoords()
                 // TODO: 改为WebGL绘制patch边界
                 // 这一步绘制patch矩形边界依赖了mapbox的底图
                 addMapPatchBounds(inputBoundsOn4326, '4326')
-            } else {
-                adjustCoords()
 
+                const patchLayer = new PatchCustomLayer('patch-layer', inputBoundsOn4326)
+                // map.addLayer(patchLayer);
+            } else {
+                inputBoundsOn4326 = convertToWGS84(inputBounds!, schemaEPSG.current)
+
+                drawCoordinates.current = {
+                    southWest: [inputBoundsOn4326[0], inputBoundsOn4326[1]],
+                    southEast: [inputBoundsOn4326[2], inputBoundsOn4326[1]],
+                    northEast: [inputBoundsOn4326[2], inputBoundsOn4326[3]],
+                    northWest: [inputBoundsOn4326[0], inputBoundsOn4326[3]],
+                    center: [(inputBoundsOn4326[0] + inputBoundsOn4326[2]) / 2, (inputBoundsOn4326[1] + inputBoundsOn4326[3]) / 2],
+                }
+
+                adjustCoords()
                 addMapPatchBounds(inputBoundsOn4326, '4326')
             }
 

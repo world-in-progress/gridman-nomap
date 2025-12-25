@@ -275,14 +275,49 @@ export default function TopologyEditor(
         let srcCS = `EPSG:${pageContext.current.patch?.epsg}`
         let bBoxCoords = pageContext.current.patch!.bounds as [number, number, number, number]
 
-        // 这里还是无EPSG
-        console.log('Original EPSG and bounds:', srcCS, bBoxCoords)
-
         if (pageContext.current.patch!.epsg === 4326) {
             const sw = convertSinglePointCoordinate([bBoxCoords[0], bBoxCoords[1]], '4326', '2326')
             const ne = convertSinglePointCoordinate([bBoxCoords[2], bBoxCoords[3]], '4326', '2326')
             srcCS = 'EPSG:3857'
             bBoxCoords = [sw[0], sw[1], ne[0], ne[1]]
+        }
+
+        if (srcCS === 'EPSG:0') {
+            try {
+                if (!map.getSource('global-mask')) {
+                    map.addSource('global-mask', {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            properties: {},
+                            geometry: {
+                                type: 'Polygon',
+                                coordinates: [[
+                                    [-180, -90],
+                                    [180, -90],
+                                    [180, 90],
+                                    [-180, 90],
+                                    [-180, -90]
+                                ]]
+                            }
+                        }
+                    })
+                }
+                if (!map.getLayer('global-mask-layer')) {
+                    map.addLayer({
+                        id: 'global-mask-layer',
+                        type: 'fill',
+                        source: 'global-mask',
+                        layout: {},
+                        paint: {
+                            'fill-color': '#ffffff',
+                            'fill-opacity': 0.8
+                        }
+                    })
+                }
+            } catch (err) {
+                console.warn('Failed to add global mask layer', err)
+            }
         }
 
         const gridContext: GridContext = {
@@ -295,13 +330,8 @@ export default function TopologyEditor(
         const gridLayer = new TopologyLayer(map)
         clg.addLayer(gridLayer)
 
-        // 这里开始报错
+
         const gridCore: GridCore = new GridCore(gridContext, node.tree.isPublic)
-
-        // 下面没有执行
-        // 这里还是无EPSG
-        console.log('srcCS', srcCS, 'bounds', bBoxCoords)
-
         await gridLayer.initialize(map, map.painter.context.gl)
 
         pc.topologyLayer = gridLayer
