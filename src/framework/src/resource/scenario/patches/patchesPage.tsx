@@ -356,12 +356,10 @@ export default function PatchesPage({
                 inputBoundsOn4326 = convertToWGS84(inputBoundsMoved, '3857')
 
                 adjustInputCoords()
-                // TODO: 改为WebGL绘制patch边界
-                // 这一步绘制patch矩形边界依赖了mapbox的底图
-                addMapPatchBounds(inputBoundsOn4326, '4326')
 
                 const patchLayer = new PatchCustomLayer('patch-layer', inputBoundsOn4326)
-                // map.addLayer(patchLayer);
+                map.addLayer(patchLayer)
+                
             } else {
                 inputBoundsOn4326 = convertToWGS84(inputBounds!, schemaEPSG.current)
 
